@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Server Socket with Oracle Database</title>
+    <style>
+      body { font: 15px Helvetica, Arial; }
+      h3 { text-align: center; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 50px 30px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      #messages { margin-bottom: 40px }
+      .messagecontainer {
+        border-style: solid;
+        display: inline-block;
+        width: 1100px;
+        height: 600px;
+        margin: 20px;
+      }
+    </style>
+  </head>
+<body>
+
+<div class="messagecontainer">
+<h3>UPDATES</h3>
+<ul id="messages"><br/></ul>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script>
+      $(function () {
+        var socket = io();
+        socket.on('message', function(msg){
+         
+          $('#messages').append($('<li>').text(msg,"\n"));
+         
+          /* $.each(JSON.parse(msg), function(idx, obj) {
+            console.log(obj);
+            $('#messages').append($('<li>').text(obj));
+          }); */
+        });
+      });
+    </script>
+</div>
+
+<div>
+  <h2>Server Socket with Oracle Database</h2>
+  
+  </div>
+  
+</body>
+
+</html>
