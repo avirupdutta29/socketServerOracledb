@@ -26,7 +26,8 @@ let dbConfig = {
     process.exit(0);
   });
 
-async function myCallback(message) {
+
+async function myCallback1(message) {
 
   let result;
   let newObj;
@@ -34,7 +35,7 @@ async function myCallback(message) {
   let conn;
   let sql;
 
-  
+  console.log("Mycallback1");
   console.log("Message type:", message.type);
   if (message.type == oracledb.SUBSCR_EVENT_TYPE_DEREG) {
     clearInterval(interval);
@@ -56,6 +57,109 @@ async function myCallback(message) {
         //result.push(row.rowid)
         console.log("--> --> Row Rowid:", row.rowid);
         console.log("--> --> Row Operation:", row.operation);
+        
+        switch(row.operation)   {              
+
+        case 2:                    //Insert Operation
+          
+          conn = await oracledb.getConnection();
+          sql = `select json_object(SRNO,HEIGHT,WEIGHT) from C##COURSE20.HW2_200 where rowid='`+row.rowid+`'`;
+          console.log(sql);
+          result = await conn.execute(sql);
+          await conn.close();
+
+          student = {
+            status: 'INSERTED'
+        }
+          console.log("Inserted");
+          
+          const rowInserted = JSON.parse(result.rows[0][0]);
+      
+          newObj = Object.assign(rowInserted, student);
+          console.log(newObj);
+          io.emit('message', JSON.stringify(newObj));
+
+        break;
+
+        case 4:              //Update Operation
+
+          conn = await oracledb.getConnection();
+          sql = "select json_object(SRNO,HEIGHT,WEIGHT) from C##COURSE20.HW2_200 where rowid='"+row.rowid+"'";
+          result = await conn.execute(sql);
+          await conn.close();
+
+          console.log("Updated");
+        
+
+          student = {
+            status: 'UPDATED'
+        }
+          const rowUpdated= JSON.parse(result.rows[0][0]);
+          newObj = Object.assign(rowUpdated, student);
+          console.log(newObj);
+          io.emit('message', JSON.stringify(newObj));
+
+      break;
+
+
+      case 8:
+         
+          conn = await oracledb.getConnection();       //Deletion using Oracle Flashback Query
+          sql=`SELECT json_object(SRNO,HEIGHT,WEIGHT) FROM C##COURSE20.HW2_200 AS OF TIMESTAMP(SYSDATE - INTERVAL '1' SECOND)  where rowid='`+row1.rowid+`'`;
+          result = await conn.execute(sql);
+          await conn.close();
+
+          console.log("Deleted");
+
+          student = {
+            status: 'DELETED'
+        }
+          
+          const rowDeleted = JSON.parse(result.rows[0][0]);
+          newObj = Object.assign(rowDeleted, student);
+          console.log(result.rows);
+          io.emit('message', JSON.stringify(newObj));
+
+        break;
+      }
+        console.log(Array(61).join("-"));
+      }
+    }
+    console.log(Array(61).join("="));
+  }
+  
+}
+async function myCallback(message) {
+
+  let result;
+  let newObj;
+  let student;
+  let conn;
+  let sql;
+
+  console.log("Mycallback");
+  console.log("Message type:", message.type);
+  if (message.type == oracledb.SUBSCR_EVENT_TYPE_DEREG) {
+    clearInterval(interval);
+    console.log("Deregistration has taken place...");
+    return;
+  }
+  console.log("Message database name:", message.dbName);
+  console.log("Message transaction id:", message.txId);
+  
+  for (let i = 0; i < message.tables.length; i++) {
+    const table = message.tables[i];
+    console.log("--> Table Name:", table.name);
+    // Note table.operation and row.operation are masks of
+    // oracledb.CQN_OPCODE_* values
+    console.log("--> Table Operation:", table.operation);
+    if (table.rows) {
+      for (let j = 0; j < table.rows.length; j++) {
+        const row = table.rows[j];
+        //result.push(row.rowid)
+        console.log("--> --> Row Rowid:", row.rowid);
+        //result.push(row.rowid);
+        console.log("--> --> Row Operation:", row.operation);
          
         switch(row.operation)   {              
 
@@ -63,6 +167,7 @@ async function myCallback(message) {
           
           conn = await oracledb.getConnection();
           sql = `select json_object(GANUM,GALEN) from C##COURSE20.SNAKES_COUNT_1000 where rowid='`+row.rowid+`'`;
+          
           result = await conn.execute(sql);
           await conn.close();
 
@@ -129,6 +234,7 @@ async function myCallback(message) {
   
 }
 
+
   async function startOracle() {
     let conn;
   
@@ -136,16 +242,22 @@ async function myCallback(message) {
       await oracledb.createPool(dbConfig);
   
       conn = await oracledb.getConnection();
+
       await conn.subscribe('mysub', {
-
-        callback: myCallback,
-        sql:      "SELECT * FROM C##COURSE20.SNAKES_COUNT_1000",  // the table to watch
-        
-        qos : oracledb.SUBSCR_QOS_ROWIDS,  // SUBSCR_QOS_ROWIDS: Return ROWIDs in the notification message
-        groupingValue : 10,
-
-        groupingType  : oracledb.SUBSCR_GROUPING_TYPE_SUMMARY
+        callback: myCallback1,
+        sql: "SELECT * FROM C##COURSE20.HW2_200",
+        qos: oracledb.SUBSCR_QOS_ROWIDS,
+        groupingValue: 10,
+        groupingType: oracledb.SUBSCR_GROUPING_TYPE_SUMMARY
       });
+      await conn.subscribe('mysub2', {
+        callback: myCallback,
+        sql: "SELECT * FROM C##COURSE20.SNAKES_COUNT_1000",
+        qos: oracledb.SUBSCR_QOS_ROWIDS,
+        groupingValue: 10,
+        groupingType: oracledb.SUBSCR_GROUPING_TYPE_SUMMARY
+      });
+
       console.log("CQN subscription created");
     } catch (err) {
       console.error(err);
@@ -158,6 +270,7 @@ async function myCallback(message) {
         }
       }
     }
+    
   }
 
   io.on('connection', (socket) => {
